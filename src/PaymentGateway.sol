@@ -10,6 +10,7 @@ contract EthJobEscrow {
     error PaymentAlreadyReleased();
     error JobNotCompleted();
     error OnlyClientCanMarkCompleted();
+    error JobNotCancelable();
 
     event JobPosted(
         uint jobId,
@@ -24,6 +25,7 @@ contract EthJobEscrow {
         address indexed freelancer,
         uint256 ethAmount
     );
+    event JobCancelled(uint jobId, address indexed client, uint256 ethAmount);
 
     AggregatorV3Interface internal priceFeed;
     address public Owner;
@@ -87,6 +89,7 @@ contract EthJobEscrow {
         emit JobPosted(jobId, client, freelancer, usdAmount, requiredEth);
     }
 
+    // Mark job as completed and release payment
     function markJobCompleted(uint jobId) external {
         JobDetails storage job = jobs[jobId];
 
@@ -106,6 +109,26 @@ contract EthJobEscrow {
         emit PaymentReleased(jobId, job.freelancer, freelancerAmount);
     }
 
+    // Cancel the job and refund ETH to the client
+    function cancelJob(uint jobId) external {
+        JobDetails storage job = jobs[jobId];
+
+        if (msg.sender != job.client) revert OnlyClientCanMarkCompleted();
+        if (job.isCompleted) revert JobAlreadyCompleted();
+        if (job.isPaid) revert PaymentAlreadyReleased();
+
+        uint256 refundAmount = job.ethAmount;
+
+        // Reset the job details
+        delete jobs[jobId];
+
+        // Refund the ETH to the client
+        payable(job.client).transfer(refundAmount);
+
+        emit JobCancelled(jobId, job.client, refundAmount);
+    }
+
+    // Get job details
     function getJobDetails(
         uint jobId
     )

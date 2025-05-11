@@ -154,4 +154,68 @@ contract EthJobEscrowTest is Test {
             client
         );
     }
+
+    function testCancelJob() public {
+        uint256 requiredEth = escrow.convertUsdToEth(usdAmount);
+
+        // Fund the client with enough ETH
+        vm.deal(client, 10 ether);
+
+        // Post a job from the client and send the required ETH
+        vm.prank(client);
+        escrow.postJob{value: requiredEth}(
+            jobId,
+            freelancer,
+            usdAmount,
+            client
+        );
+
+        // Verify job details before cancellation
+        (
+            address clientJob,
+            address freelancerJob,
+            uint256 usdJob,
+            uint256 ethJob,
+            bool isCompletedJob,
+            bool isPaidJob
+        ) = escrow.getJobDetails(jobId);
+
+        assertEq(clientJob, client);
+        assertEq(freelancerJob, freelancer);
+        assertEq(usdJob, usdAmount);
+        assertEq(ethJob, requiredEth);
+        assertEq(isCompletedJob, false);
+        assertEq(isPaidJob, false);
+
+        // Capture client's balance before cancellation
+        uint256 balanceBeforeCancel = client.balance;
+
+        // Cancel the job and refund ETH to client
+        vm.prank(client);
+        escrow.cancelJob(jobId);
+
+        // Verify that the contract balance is 0 (ETH refunded to the client)
+        assertEq(address(escrow).balance, 0);
+
+        // Allow for a small variance in the balance change due to gas fees and rounding
+        uint256 balanceAfterCancel = client.balance;
+        assertTrue(
+            balanceAfterCancel >= balanceBeforeCancel + requiredEth - 1 ether &&
+                balanceAfterCancel <=
+                balanceBeforeCancel + requiredEth + 1 ether
+        );
+
+        // Verify job details after cancellation
+        (
+            clientJob,
+            freelancerJob,
+            usdJob,
+            ethJob,
+            isCompletedJob,
+            isPaidJob
+        ) = escrow.getJobDetails(jobId);
+
+        assertEq(isCompletedJob, false);
+        assertEq(isPaidJob, false);
+    }
 }
