@@ -10,12 +10,14 @@ contract EthJobEscrowTest is Test {
     MockV3Aggregator mockPriceFeed;
     address client = address(0x1);
     address freelancer = address(0x2);
+    address Owner = address(0x3);
     uint jobId = 1;
     uint256 usdAmount = 1000; // USD amount to be converted to ETH
+    address feeReceiver = Owner; // Use Owner as the fee receiver
 
     function setUp() public {
         mockPriceFeed = new MockV3Aggregator(8, 3000e8); // Simulates ETH/USD = $3000
-        escrow = new EthJobEscrow(address(mockPriceFeed));
+        escrow = new EthJobEscrow(address(mockPriceFeed), Owner);
     }
 
     function testPostJob() public {
@@ -91,9 +93,16 @@ contract EthJobEscrowTest is Test {
         vm.prank(client);
         escrow.markJobCompleted(jobId);
 
-        // Check if freelancer received the ETH
+        // Check if freelancer received the ETH (after fee)
+        uint256 feeAmount = (requiredEth * 5) / 100; // 5% fee
+        uint256 freelancerAmount = requiredEth - feeAmount; // 95% for freelancer
         uint256 balanceAfter = freelancer.balance;
-        assertEq(balanceAfter, balanceBefore + requiredEth);
+
+        assertEq(balanceAfter, balanceBefore + freelancerAmount);
+
+        // Check if fee receiver (Owner) got the fee
+        uint256 feeReceiverBalance = feeReceiver.balance;
+        assertEq(feeReceiverBalance, feeAmount);
 
         // Check updated job status
         (, , , , bool isCompletedAfter, bool isPaidAfter) = escrow

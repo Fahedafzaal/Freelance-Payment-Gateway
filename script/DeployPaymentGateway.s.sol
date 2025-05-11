@@ -24,7 +24,7 @@ contract DeployEthJobEscrow is Script {
         // Broadcast deployment
         vm.startBroadcast();
 
-        EthJobEscrow escrow = new EthJobEscrow(priceFeed);
+        EthJobEscrow escrow = new EthJobEscrow(priceFeed, msg.sender);
 
         vm.stopBroadcast();
 

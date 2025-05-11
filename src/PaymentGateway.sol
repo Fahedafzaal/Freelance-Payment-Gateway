@@ -26,9 +26,12 @@ contract EthJobEscrow {
     );
 
     AggregatorV3Interface internal priceFeed;
+    address public Owner;
+    uint256 public constant FEE_PERCENT = 5;
 
-    constructor(address _ethUsdPriceFeed) {
+    constructor(address _ethUsdPriceFeed, address owner) {
         priceFeed = AggregatorV3Interface(_ethUsdPriceFeed);
+        Owner = owner;
     }
 
     struct JobDetails {
@@ -84,22 +87,23 @@ contract EthJobEscrow {
         emit JobPosted(jobId, client, freelancer, usdAmount, requiredEth);
     }
 
-    // Mark the job as completed and release payment to freelancer
     function markJobCompleted(uint jobId) external {
         JobDetails storage job = jobs[jobId];
 
-        // ✅ Only client can mark job as completed
         if (msg.sender != job.client) revert OnlyClientCanMarkCompleted();
-
         if (job.isCompleted) revert JobAlreadyCompleted();
 
         job.isCompleted = true;
         emit JobCompleted(jobId);
 
-        payable(job.freelancer).transfer(job.ethAmount);
-        job.isPaid = true;
+        uint256 feeAmount = (job.ethAmount * FEE_PERCENT) / 100; // Already in wei
+        uint256 freelancerAmount = job.ethAmount - feeAmount; // Already in wei
 
-        emit PaymentReleased(jobId, job.freelancer, job.ethAmount);
+        payable(Owner).transfer(feeAmount); // No extra multiplication
+        payable(job.freelancer).transfer(freelancerAmount);
+
+        job.isPaid = true;
+        emit PaymentReleased(jobId, job.freelancer, freelancerAmount);
     }
 
     function getJobDetails(
