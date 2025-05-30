@@ -1,308 +1,191 @@
-# Freelance Payment Gateway - Golang Integration
+# Freelance Payment Gateway Integration
 
-This package provides a Golang integration for the EthJobEscrow smart contract, enabling blockchain-based payments for your freelancing platform.
+A secure, trustless payment gateway for freelance platforms using blockchain escrow.
 
-## Features
+## 🚀 Quick Start
 
-- **Escrow Payments**: Secure payment holding using smart contracts
-- **USD-ETH Conversion**: Automatic conversion using Chainlink price feeds
-- **Job Management**: Post, complete, and cancel jobs on the blockchain
-- **Real-time Price Data**: Get current ETH/USD prices
-- **REST API**: HTTP endpoints for all blockchain operations
+1. **Configure Environment**
+   ```bash
+   cp env.example .env
+   # Edit .env with your credentials
+   ```
 
-## Architecture
+2. **Deploy Smart Contract**
+   ```bash
+   make deploy-contract
+   ```
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web Frontend  │◄──►│  Golang Backend  │◄──►│ Smart Contract  │
-│                 │    │                  │    │   (Ethereum)    │
-│   - Job UI      │    │  - REST API      │    │  - Escrow Logic │
-│   - Payments    │    │  - Blockchain    │    │  - Price Feeds  │
-│   - Status      │    │    Client        │    │  - Events       │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
+3. **Start Payment Gateway**
+   ```bash
+   make run
+   ```
 
-## Prerequisites
+## 📋 Integration Guide
 
-1. **Go 1.19+** installed
-2. **Ethereum Node Access** (Infura, Alchemy, or local node)
-3. **Smart Contract** deployed on testnet/mainnet
-4. **Private Key** with ETH for gas fees
-5. **Environment Variables** configured
+### 1. Database Schema
 
-## Quick Start
+The payment gateway works with your existing PostgreSQL schema:
 
-### 1. Clone and Setup
+```sql
+applications (
+    id SERIAL PRIMARY KEY,
+    payment_status VARCHAR(50),
+    escrow_tx_hash_deposit VARCHAR(66),
+    escrow_tx_hash_release VARCHAR(66),
+    escrow_tx_hash_refund VARCHAR(66),
+    agreed_usd_amount DECIMAL(10,2)
+)
 
-```bash
-cd go-integration
-cp env.example .env
-# Edit .env with your configuration
-```
+users (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(42)
+)
 
-### 2. Install Dependencies
-
-```bash
-go mod tidy
-```
-
-### 3. Deploy Smart Contract (if not deployed)
-
-```bash
-# Go back to the root directory
-cd ../
-forge script script/DeployPaymentGateway.s.sol:DeployEthJobEscrow --rpc-url $SEPOLIA_RPC_URL --private-key $PRIVATE_KEY --broadcast
-```
-
-### 4. Configure Environment
-
-Edit your `.env` file with the deployed contract address:
-
-```env
-ETHEREUM_RPC_URL=https://sepolia.infura.io/v3/YOUR_PROJECT_ID
-CONTRACT_ADDRESS=0xYourDeployedContractAddress
-PRIVATE_KEY=your_private_key_without_0x
-```
-
-### 5. Run the Application
-
-```bash
-# Load environment variables
-source .env
-
-# Run the server
-go run cmd/main.go
-```
-
-The server will start on `http://localhost:8080`
-
-## API Endpoints
-
-### 1. Post a Job
-
-**POST** `/post-job`
-
-Creates a new job and locks ETH in escrow based on USD amount.
-
-```bash
-curl -X POST http://localhost:8080/post-job \
-  -H "Content-Type: application/json" \
-  -d '{
-    "job_id": 1,
-    "freelancer_address": "0x742C4356e2B18C51EB9D0CbaF6A1A6c0C8c7DBCE",
-    "usd_amount": "100",
-    "client_address": "0x8ba1f109551bD432803012645Hac136c4Ce7"
-  }'
-```
-
-**Response:**
-```json
-{
-  "tx_hash": "0x123...",
-  "block_number": 12345,
-  "gas_used": 150000,
-  "success": true
-}
-```
-
-### 2. Get Job Status
-
-**GET** `/job-status?job_id=1`
-
-Retrieves current job information from the blockchain.
-
-```bash
-curl http://localhost:8080/job-status?job_id=1
-```
-
-**Response:**
-```json
-{
-  "job_id": 1,
-  "client": "0x8ba1f109551bD432803012645Hac136c4Ce7",
-  "freelancer": "0x742C4356e2B18C51EB9D0CbaF6A1A6c0C8c7DBCE",
-  "usd_amount": "100",
-  "eth_amount": "0.03125",
-  "is_completed": false,
-  "is_paid": false
-}
-```
-
-### 3. Complete Job
-
-**POST** `/complete-job?job_id=1`
-
-Marks a job as completed and releases payment to freelancer.
-
-```bash
-curl -X POST http://localhost:8080/complete-job?job_id=1
-```
-
-### 4. Cancel Job
-
-**POST** `/cancel-job?job_id=1`
-
-Cancels a job and refunds the client.
-
-```bash
-curl -X POST http://localhost:8080/cancel-job?job_id=1
-```
-
-### 5. Get ETH Price
-
-**GET** `/eth-price`
-
-Gets current ETH/USD price from Chainlink.
-
-```bash
-curl http://localhost:8080/eth-price
-```
-
-**Response:**
-```json
-{
-  "eth_usd_price": "320000000000"
-}
-```
-
-## Integration in Your Web App
-
-### 1. Import the Package
-
-```go
-import (
-    "github.com/fahedafzaal/freelance-payment-gateway/internal/config"
-    "github.com/fahedafzaal/freelance-payment-gateway/pkg/blockchain"
+jobs (
+    id SERIAL PRIMARY KEY,
+    -- other fields
 )
 ```
 
-### 2. Initialize Client
+### 2. API Endpoints
 
-```go
-cfg := config.Load()
-client, err := blockchain.NewClient(cfg)
-if err != nil {
-    log.Fatal(err)
+#### POST /post-job
+Called when candidate accepts offer → funds escrow
+```json
+{
+    "job_id": "123",              // applications.id
+    "freelancer_address": "0x...", // applicant wallet
+    "usd_amount": "100.00",       // agreed_usd_amount
+    "client_address": "0x..."     // poster wallet
 }
-defer client.Close()
 ```
 
-### 3. Use Blockchain Operations
+#### POST /complete-job
+Called when poster approves work → releases payment
+```json
+{
+    "job_id": "123"  // applications.id
+}
+```
+
+#### POST /cancel-job
+Called for refunds
+```json
+{
+    "job_id": "123"  // applications.id
+}
+```
+
+#### GET /job-status
+Returns payment status
+```json
+{
+    "job_id": "123"  // applications.id
+}
+```
+
+### 3. Integration Example
 
 ```go
-// Post a job
-result, err := client.PostJob(ctx, jobID, freelancerAddr, usdAmount, clientAddr)
+// In your RespondToOffer handler
+func (h *Handler) RespondToOffer(w http.ResponseWriter, r *http.Request) {
+    // ... your existing code ...
 
-// Get job details
-details, err := client.GetJobDetails(ctx, jobID)
+    // Call payment gateway to fund escrow
+    resp, err := h.paymentGateway.PostJob(ctx, &blockchain.PostJobRequest{
+        JobID:             application.ID,
+        FreelancerAddress: freelancer.WalletAddress,
+        USDAmount:         application.AgreedUSDAmount,
+        ClientAddress:     client.WalletAddress,
+    })
+    if err != nil {
+        // Handle error
+        return
+    }
 
-// Complete job
-result, err := client.MarkJobCompleted(ctx, jobID)
-
-// Cancel job
-result, err := client.CancelJob(ctx, jobID)
+    // Update application status
+    application.PaymentStatus = "deposit_initiated"
+    application.EscrowTxHashDeposit = resp.TxHash
+    // Save to database
+}
 ```
 
-## Configuration
+## 🔧 Configuration
 
 ### Environment Variables
+```env
+# Server
+PORT=8081
+ENV=development
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `ETHEREUM_RPC_URL` | Ethereum node URL | `https://sepolia.infura.io/v3/...` |
-| `NETWORK_ID` | Chain ID | `11155111` (Sepolia) |
-| `CONTRACT_ADDRESS` | Deployed contract address | `0x123...` |
-| `PRIVATE_KEY` | Private key for transactions | `abc123...` |
-| `GAS_LIMIT` | Gas limit for transactions | `300000` |
-| `GAS_PRICE` | Gas price in Gwei | `20` |
-| `SERVER_PORT` | HTTP server port | `8080` |
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=freelance_platform
 
-### Network Support
+# Blockchain
+PRIVATE_KEY=your_private_key
+RPC_URL=your_rpc_url
+CONTRACT_ADDRESS=your_contract_address
+```
 
-- **Sepolia Testnet** (Chain ID: 11155111)
-- **Ethereum Mainnet** (Chain ID: 1)
-
-Price feeds are automatically configured based on the network.
-
-## Security Considerations
-
-1. **Private Key Management**: Never commit private keys to version control
-2. **Environment Variables**: Use secure environment variable management
-3. **Gas Limits**: Set appropriate gas limits to prevent failed transactions
-4. **Input Validation**: Always validate user inputs before blockchain calls
-5. **Error Handling**: Implement proper error handling for failed transactions
-
-## Testing
-
-### Unit Tests
-
+### Docker Support
 ```bash
-go test ./...
+# Build and run with Docker
+docker-compose up --build
 ```
 
-### Integration Tests with Testnet
+## 🛠 Development
 
-1. Deploy contract to Sepolia testnet
-2. Configure environment variables
-3. Run integration tests
+### Prerequisites
+- Go 1.21+
+- PostgreSQL 14+
+- Foundry (for smart contracts)
 
+### Commands
 ```bash
-go test -tags=integration ./...
+# Install dependencies
+go mod tidy
+
+# Run tests
+make test
+
+# Build
+make build
+
+# Run
+make run
 ```
 
-## Troubleshooting
+## 📝 Notes
 
-### Common Issues
+- Uses `applications.id` as the escrow `jobId` on blockchain
+- All payment tracking happens at the application level
+- Multiple freelancers can work on different applications for the same job
+- Failed blockchain calls don't corrupt your database
+- All transaction hashes are recorded for transparency
 
-1. **"insufficient funds"**: Ensure your wallet has enough ETH for gas
-2. **"contract not found"**: Verify the contract address is correct
-3. **"nonce too low"**: Wait for previous transactions to confirm
-4. **"gas too low"**: Increase the gas limit in configuration
+## 🔍 Troubleshooting
 
-### Debugging
+1. **Database Connection Issues**
+   - Check PostgreSQL is running
+   - Verify credentials in .env
+   - Ensure database exists
 
-Enable debug logging:
-```go
-log.SetLevel(log.DebugLevel)
-```
+2. **Blockchain Transaction Failures**
+   - Check RPC URL is correct
+   - Verify private key has enough gas
+   - Check contract address is correct
 
-### Transaction Monitoring
+3. **API Errors**
+   - Check application exists
+   - Verify wallet addresses are valid
+   - Ensure amounts are properly formatted
 
-Check transaction status on:
-- Sepolia: https://sepolia.etherscan.io
-- Mainnet: https://etherscan.io
+## 📚 Additional Resources
 
-## Production Deployment
-
-### 1. Security Checklist
-
-- [ ] Private keys stored securely (AWS KMS, HashiCorp Vault)
-- [ ] Environment variables encrypted
-- [ ] Rate limiting implemented
-- [ ] Input validation on all endpoints
-- [ ] Monitoring and alerting set up
-
-### 2. Infrastructure
-
-- [ ] Load balancer for multiple instances
-- [ ] Database for off-chain data
-- [ ] Redis for caching
-- [ ] Backup Ethereum node endpoints
-
-### 3. Monitoring
-
-- [ ] Transaction success/failure rates
-- [ ] Gas usage and costs
-- [ ] API response times
-- [ ] Blockchain node connectivity
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details. 
+- [Smart Contract Documentation](./contracts/README.md)
+- [API Documentation](./pkg/blockchain/README.md)
+- [Database Schema](./pkg/database/README.md) 

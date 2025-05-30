@@ -4,7 +4,7 @@
 
 set -e
 
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:8081"
 
 echo "🧪 Testing Freelance Payment Gateway API..."
 echo "Make sure the server is running with: go run cmd/main.go"

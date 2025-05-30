@@ -55,7 +55,7 @@ docker-build: ## Build Docker image
 	docker build -t freelance-payment-gateway .
 
 docker-run: ## Run Docker container
-	docker run -p 8080:8080 --env-file .env freelance-payment-gateway
+	docker run -p 8081:8081 --env-file .env freelance-payment-gateway
 
 # Production
 build-prod: ## Build for production

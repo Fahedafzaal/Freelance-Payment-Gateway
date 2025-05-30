@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  payment-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL}
+      - NETWORK_ID=${NETWORK_ID}
+      - CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - ETH_USD_PRICE_FEED=${ETH_USD_PRICE_FEED}
+      - FEE_PERCENTAGE=${FEE_PERCENTAGE}
+      - GAS_LIMIT=${GAS_LIMIT}
+      - GAS_PRICE=${GAS_PRICE}
+      # Database connection using the same credentials as your main app
+      - DATABASE_URL=postgres://fahed:junglebook@db:5432/fyp-go
+      - SERVER_PORT=8081
+    ports:
+      - "8081:8081"
+    networks:
+      - payment-network
+    depends_on:
+      - db
+
+  # Reuse your existing database service
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: fahed
+      POSTGRES_PASSWORD: junglebook
+      POSTGRES_DB: fyp-go
+    ports:
+      - "5432:5432"
+    networks:
+      - payment-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Reuse your existing adminer service
+  adminer:
+    image: adminer
+    restart: always
+    environment:
+      ADMINER_DESIGN: dracula
+    ports:
+      - "3334:8080"
+    networks:
+      - payment-network
+    depends_on:
+      - db
+
+networks:
+  payment-network:
+    name: payment-network
+    # If you want to connect to your existing network, uncomment and set the name
+    # external: true
+    # name: your-existing-network-name
+
+volumes:
+  postgres_data:
+    name: postgres_data
+    # If you want to use your existing volume, uncomment and set the name
+    # external: true
+    # name: your-existing-volume-name 
