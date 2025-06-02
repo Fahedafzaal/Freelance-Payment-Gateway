@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -20,15 +21,20 @@ type Config struct {
 	GasLimit      uint64
 	GasPrice      int64 // in Gwei
 
-	// Database settings (for your web app)
-	DatabaseURL string
+	// Database settings
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DatabaseURL string // Constructed from individual settings
 
 	// Server settings
 	ServerPort string
 }
 
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		// Default to Sepolia testnet
 		EthereumRPCURL:  getEnv("ETHEREUM_RPC_URL", "https://sepolia.infura.io/v3/YOUR_INFURA_KEY"),
 		NetworkID:       getEnvAsInt64("NETWORK_ID", 11155111), // Sepolia
@@ -42,9 +48,26 @@ func Load() *Config {
 		GasLimit:      getEnvAsUint64("GAS_LIMIT", 300000),
 		GasPrice:      getEnvAsInt64("GAS_PRICE", 20), // 20 Gwei
 
-		DatabaseURL: getEnv("DATABASE_URL", ""),
-		ServerPort:  getEnv("SERVER_PORT", "8080"),
+		// Database settings
+		DBHost:     getEnv("DB_HOST", "localhost"),
+		DBPort:     getEnv("DB_PORT", "5432"),
+		DBUser:     getEnv("DB_USER", "fahed"),
+		DBPassword: getEnv("DB_PASSWORD", "junglebook"),
+		DBName:     getEnv("DB_NAME", "fyp-go"),
+
+		ServerPort: getEnv("SERVER_PORT", "8081"),
 	}
+
+	// Construct database URL
+	cfg.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
+	)
+
+	return cfg
 }
 
 func getEnv(key, defaultValue string) string {

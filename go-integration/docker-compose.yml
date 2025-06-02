@@ -21,44 +21,12 @@ services:
     ports:
       - "8081:8081"
     networks:
-      - payment-network
-    depends_on:
-      - db
-
-  # Reuse your existing database service
-  db:
-    image: postgres
-    restart: always
-    environment:
-      POSTGRES_USER: fahed
-      POSTGRES_PASSWORD: junglebook
-      POSTGRES_DB: fyp-go
-    ports:
-      - "5432:5432"
-    networks:
-      - payment-network
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  # Reuse your existing adminer service
-  adminer:
-    image: adminer
-    restart: always
-    environment:
-      ADMINER_DESIGN: dracula
-    ports:
-      - "3334:8080"
-    networks:
-      - payment-network
-    depends_on:
-      - db
+      - fyp-go_default
 
 networks:
-  payment-network:
-    name: payment-network
-    # If you want to connect to your existing network, uncomment and set the name
-    # external: true
-    # name: your-existing-network-name
+  fyp-go_default:
+    external: true
+    name: fyp-go_default
 
 volumes:
   postgres_data:

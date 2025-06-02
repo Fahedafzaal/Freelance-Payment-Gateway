@@ -40,10 +40,10 @@ JOB_PAYLOAD='{
 
 echo "Payload: $JOB_PAYLOAD"
 
-# Uncomment to test actual job posting
-# curl -X POST "$BASE_URL/post-job" \
-#   -H "Content-Type: application/json" \
-#   -d "$JOB_PAYLOAD" | jq '.' 2>/dev/null || echo "Job posting test skipped"
+
+curl -X POST "$BASE_URL/post-job" \
+  -H "Content-Type: application/json" \
+  -d "$JOB_PAYLOAD" | jq '.' 2>/dev/null || echo "Job posting test skipped"
 
 echo ""
 
@@ -51,8 +51,7 @@ echo ""
 echo -e "${YELLOW}4. Testing Job Status Query...${NC}"
 echo "Note: This will fail without an existing job"
 
-# Uncomment to test actual job status
-# curl -s "$BASE_URL/job-status?job_id=123" | jq '.' 2>/dev/null || echo "Job status test skipped"
+curl -s "$BASE_URL/job-status?job_id=123" | jq '.' 2>/dev/null || echo "Job status test skipped"
 
 echo ""
 
