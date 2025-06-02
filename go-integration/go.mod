@@ -1,4 +1,4 @@
-module github.com/fahedafzaal/freelance-payment-gateway
+module github.com/Fahedafzaal/Freelance-Payment-Gateway/go-integration
 
 go 1.24.3
 

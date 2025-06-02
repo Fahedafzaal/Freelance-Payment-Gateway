@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/fahedafzaal/freelance-payment-gateway/pkg/blockchain"
+	"github.com/Fahedafzaal/Freelance-Payment-Gateway/go-integration/pkg/payment"
 )
 
 // Example integration code for your main application
@@ -13,7 +13,7 @@ import (
 
 func main() {
 	// Initialize the payment gateway service client
-	paymentGateway := blockchain.NewPaymentGatewayService("http://localhost:8081")
+	paymentGateway := payment.NewPaymentGatewayService("http://localhost:8081")
 
 	// Example: Call from your RespondToOffer method
 	// This is what you would add to your ApplicationService.RespondToOffer method
@@ -25,7 +25,7 @@ func main() {
 }
 
 // Example integration for RespondToOffer (when candidate accepts offer)
-func exampleRespondToOfferIntegration(paymentGateway *blockchain.PaymentGatewayService) {
+func exampleRespondToOfferIntegration(paymentGateway *payment.PaymentGatewayService) {
 	ctx := context.Background()
 
 	// This would be your application data from the database
@@ -35,7 +35,7 @@ func exampleRespondToOfferIntegration(paymentGateway *blockchain.PaymentGatewayS
 	agreedUSDAmount := int32(100)
 
 	// Create the request
-	req := blockchain.PostJobRequest{
+	req := payment.PostJobRequest{
 		JobID:             uint64(applicationID), // Using application.id as escrow job_id
 		FreelancerAddress: freelancerWallet,
 		USDAmount:         fmt.Sprintf("%d", agreedUSDAmount),
@@ -58,7 +58,7 @@ func exampleRespondToOfferIntegration(paymentGateway *blockchain.PaymentGatewayS
 }
 
 // Example integration for PosterReviewWork (when poster approves work)
-func examplePosterReviewWorkIntegration(paymentGateway *blockchain.PaymentGatewayService) {
+func examplePosterReviewWorkIntegration(paymentGateway *payment.PaymentGatewayService) {
 	ctx := context.Background()
 
 	applicationID := int32(123)
@@ -88,7 +88,7 @@ func (as *ApplicationService) RespondToOffer(ctx context.Context, params Respond
 
 	if params.Accept && newAppStatus == StatusHired {
 		// NEW: Call payment gateway to fund escrow
-		paymentGateway := blockchain.NewPaymentGatewayService("http://localhost:8081")
+		paymentGateway := payment.NewPaymentGatewayService("http://localhost:8081")
 
 		// Get wallet addresses from database
 		app, _ := as.Queries.GetApplicationByID(ctx, params.ApplicationID)
@@ -96,7 +96,7 @@ func (as *ApplicationService) RespondToOffer(ctx context.Context, params Respond
 		applicant, _ := as.Queries.GetUserByID(ctx, app.UserID)
 		poster, _ := as.Queries.GetUserByID(ctx, job.UserID)
 
-		req := blockchain.PostJobRequest{
+		req := payment.PostJobRequest{
 			JobID:             uint64(params.ApplicationID),
 			FreelancerAddress: applicant.WalletAddress.String,
 			USDAmount:         fmt.Sprintf("%d", app.AgreedUsdAmount.Int32),
@@ -125,7 +125,7 @@ func (as *ApplicationService) PosterReviewWork(ctx context.Context, params Poste
 
 	if params.NewStatus == StatusWorkApproved && currentAppPaymentDetails.PaymentStatus.String == PaymentStatusDeposited {
 		// NEW: Call payment gateway to release payment
-		paymentGateway := blockchain.NewPaymentGatewayService("http://localhost:8081")
+		paymentGateway := payment.NewPaymentGatewayService("http://localhost:8081")
 
 		result, err := paymentGateway.CompleteJob(ctx, uint64(params.ApplicationID))
 		if err != nil {
@@ -146,7 +146,7 @@ func (as *ApplicationService) PosterReviewWork(ctx context.Context, params Poste
 
 // CheckTransactionStatus can be called periodically to confirm transactions
 func (as *ApplicationService) CheckTransactionStatus(ctx context.Context, applicationID int32) error {
-	paymentGateway := blockchain.NewPaymentGatewayService("http://localhost:8081")
+	paymentGateway := payment.NewPaymentGatewayService("http://localhost:8081")
 
 	status, err := paymentGateway.GetJobStatus(ctx, uint64(applicationID))
 	if err != nil {
